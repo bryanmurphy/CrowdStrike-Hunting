@@ -30,3 +30,22 @@ match(FileName, "(?i)^(bomgar-scc-|ConnAgnt.exe)"), "Bomgar/BeyondTrust Remote")
 | stats values(FileName) as FileNames values(FilePath) as ModifiedFilePaths values(SHA256HashData) as Hashes values(productType) as HostType values(ComputerName) as Hosts count AS Occurrences dc(aid) AS HostCount by Product
 | sort 0 + HostCount, + Occurrences
 ````
+
+**Hosts Receiving RDP Connection Attempts from Non-Private IP Space**
+
+````
+event_simpleName=NetworkReceive* LocalPort_decimal=3389 
+NOT (RemoteAddressIP4 IN (10.0.0.0/8,192.168.0.0/16,165.225.0.0/16,127.0.0.1/8,172.16.0.0/12,169.254.0.0/16) OR RemoteAddressIP6 IN ("0:0:0:0:0:0:0:1","2602:FDAA:0:2108::/64"))
+| eval HostType=case(ProductType = "1","Workstation", ProductType = "2","Domain Controller", ProductType = "3","Server", event_platform = "Mac", "Workstation")
+|stats count by ComputerName, HostType
+````
+
+**Potential Web-Shell Updloads**
+````
+event_simpleName=NewScriptWritten TargetFileName=*wwwroot* NOT TargetFileName IN (your_white_list,your_white_list2))
+[search event_simpleName IN (SyntheticProcessRollup2, ProcessRollup2) FileName=w3wp.exe
+| rename TargetProcessId_decimal AS ContextProcessId_decimal
+| fields aid ContextProcessId_decimal]
+| fields _time ComputerName event_simpleName TargetFileName
+| table _time ComputerName event_simpleName TargetFileName
+````
